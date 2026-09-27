@@ -14,6 +14,8 @@
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Compress the bundled runtime: ~200 MB down to well under half. -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <ApplicationIcon>TavernTracker.ico</ApplicationIcon>
   </PropertyGroup>
 
