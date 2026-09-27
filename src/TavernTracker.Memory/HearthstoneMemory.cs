@@ -46,8 +46,9 @@ namespace TavernTracker.Memory
                     DuosRating = rating.Duos,
                     NewRating = ReadNewRating(),
                     Scene = ReadScene(),
-                    AvailableRaces = includeLobby ? ReadRaces() : Array.Empty<int>(),
-                    Players = includeLobby ? ReadPlayers() : Array.Empty<MemoryPlayer>(),
+                    // Each part on its own: one failing read (after a game patch, say) mustn't hide the others.
+                    AvailableRaces = includeLobby ? Safe("tribes", ReadRaces, Array.Empty<int>()) : Array.Empty<int>(),
+                    Players = includeLobby ? Safe("players", ReadPlayers, Array.Empty<MemoryPlayer>()) : Array.Empty<MemoryPlayer>(),
                 };
                 _failures = 0;
                 Status = "Connected";
@@ -69,6 +70,21 @@ namespace TavernTracker.Memory
         }
 
         public void Dispose() => Detach();
+
+        private readonly HashSet<string> _reported = new HashSet<string>();
+
+        private T Safe<T>(string what, Func<T> read, T fallback)
+        {
+            try
+            {
+                return read();
+            }
+            catch (Exception ex)
+            {
+                if (_reported.Add(what)) Log.Warn($"Memory: couldn't read the lobby's {what} ({ex.GetType().Name}: {ex.Message})");
+                return fallback;
+            }
+        }
 
         /// <summary>
         /// PlayerLeaderboardManager.m_currentlyMousedOverTile, the same read Firestone uses (and HDT does via
@@ -173,7 +189,12 @@ namespace TavernTracker.Memory
             if (races == null) return result;
             int count = races["_size"] ?? 0;
             var items = races["_items"];
-            for (int i = 0; i < count; i++) result.Add((int)items[i]);
+            for (int i = 0; i < count; i++)
+            {
+                object v = items[i];
+                if (v == null) continue;
+                result.Add(Convert.ToInt32(v));
+            }
             return result;
         }
 

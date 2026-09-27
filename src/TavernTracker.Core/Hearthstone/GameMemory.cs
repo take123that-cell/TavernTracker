@@ -61,6 +61,13 @@ public static class Races
         [126] = ("ABERRATION", "Aberration"),
     };
 
+    /// <summary>Race number for a card-data name ("BEAST" → 20), or 0.</summary>
+    public static int Number(string key)
+    {
+        foreach (var (n, v) in Map) if (v.Key == key) return n;
+        return 0;
+    }
+
     public static string Key(int race) => Map.TryGetValue(race, out var v) ? v.Key : $"RACE_{race}";
     public static string Label(int race) => Map.TryGetValue(race, out var v) ? v.Label : $"Tribe {race}";
 

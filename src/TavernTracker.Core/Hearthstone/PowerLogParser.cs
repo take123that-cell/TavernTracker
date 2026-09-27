@@ -72,6 +72,10 @@ public sealed class PowerLogParser
     private Dictionary<int, string> _pendingNames = new();
     private bool _infoForNextGame;
 
+    // Minions Bob offers in the shop (for working out the lobby's tribes without memory reading).
+    private bool _inCombat;
+    private HashSet<int> _shopEntities = new();
+
     private sealed class OpenChoice
     {
         public int Id;
@@ -290,6 +294,8 @@ public sealed class PowerLogParser
         _playerEntityToId = new Dictionary<int, int>();
         _playerAccountHi = new Dictionary<int, long>();
         _leaderboardEntities = new HashSet<int>();
+        _shopEntities = new HashSet<int>();
+        _inCombat = false;
         _current = null;
         _gameEntityId = 1;
         _inGame = true;
@@ -320,12 +326,25 @@ public sealed class PowerLogParser
                 if (e.Id == _gameEntityId && previous == "1" && value == "0" && IsBattlegrounds())
                 {
                     bool duos = Game?.IsDuos ?? false;
-                    if ((tag == "2022") != duos) RaiseCombat(time);
+                    if ((tag == "2022") != duos)
+                    {
+                        _inCombat = true;
+                        // The opponent's board is set up just before this; it isn't Bob's shop.
+                        int me = Game?.LocalPlayerId ?? 0;
+                        _shopEntities.RemoveWhere(id => _entities.TryGetValue(id, out var x)
+                            && x.Str("ZONE") is "PLAY" or "1" && x.Int("CONTROLLER") != me);
+                        RaiseCombat(time);
+                    }
                 }
                 else if (e.Id == _gameEntityId && previous == "0" && value == "1")
                 {
+                    _inCombat = false;
                     CombatEnded?.Invoke();
                 }
+                break;
+            case "ZONE":
+                // Outside combat, minions appearing on the other side of the table are Bob's shop offers.
+                if (!_inCombat && (value == "PLAY" || value == "1")) _shopEntities.Add(e.Id);
                 break;
             case "PLAYER_LEADERBOARD_PLACE":
                 e.PlaceSeq = ++_seq;
@@ -397,6 +416,26 @@ public sealed class PowerLogParser
         if (abandoned) Log.Warn($"Game {Game.Id} ended without a result (client restarted?)");
         if (!_announced) { _announced = true; GameStarted?.Invoke(Game); }
         GameEnded?.Invoke(Game);
+    }
+
+    /// <summary>
+    /// Card ids of the minions Bob has offered you in the shop this game. Only cards from the lobby's pool
+    /// appear there, so their tribes reveal the lobby's tribes when memory reading isn't available.
+    /// </summary>
+    public IReadOnlyCollection<string> ShopCardIds()
+    {
+        if (Game == null || Game.LocalPlayerId == 0) return Array.Empty<string>();
+        int me = Game.LocalPlayerId;
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in _shopEntities)
+        {
+            if (!_entities.TryGetValue(id, out var e) || e.CardId.Length == 0) continue;
+            if (e.Str("CARDTYPE") is not ("MINION" or "4")) continue;
+            int controller = e.Int("CONTROLLER");
+            if (controller == 0 || controller == me) continue;
+            result.Add(e.CardId);
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------ choices

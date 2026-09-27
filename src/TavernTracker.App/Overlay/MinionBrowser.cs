@@ -112,13 +112,13 @@ public sealed class MinionBrowser : StackPanel
             Background = PanelBg,
             BorderBrush = GroupEdge,
             BorderThickness = new Thickness(1),
-            Width = 300,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            Width = 176,
+            VerticalAlignment = VerticalAlignment.Top,
             Visibility = Visibility.Collapsed,
-            Padding = new Thickness(8),
-            Margin = new Thickness(0, 2, 0, 0),
+            Padding = new Thickness(6),
+            Margin = new Thickness(0, 5, 6, 0),
+            ToolTip = "Right-click a card in the list to hide it",
         };
-        Children.Add(_filterBox);
 
         _scroll = new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, MaxHeight = 700, CanContentScroll = false };
         _listBox = new Border { Width = ListWidth + 4, Child = _scroll, Visibility = Visibility.Collapsed };
@@ -140,10 +140,14 @@ public sealed class MinionBrowser : StackPanel
         };
         _previewLayer.Children.Add(_preview);
 
+        // Filters open to the LEFT of the list, so the cards stay right under the tier shields.
+        _body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _body.Children.Add(_previewLayer);
-        Grid.SetColumn(_listBox, 1);
+        Grid.SetColumn(_filterBox, 1);
+        _body.Children.Add(_filterBox);
+        Grid.SetColumn(_listBox, 2);
         _body.Children.Add(_listBox);
         Children.Add(_body);
 
@@ -333,70 +337,80 @@ public sealed class MinionBrowser : StackPanel
 
     private void BuildFilter()
     {
-        var box = Stack(Orientation.Vertical, 8);
-        box.Children.Add(Small("Minion Types", Muted, 11, bold: true));
-        var tribes = new WrapPanel();
+        var box = new StackPanel();
+        box.Children.Add(FilterTitle("Minion Types"));
+        // This lobby's tribes only (once known), then neutrals and spells.
         var lobby = _engine.LobbyRaces().Select(Races.Key).ToList();
         var keys = (lobby.Count > 0 ? lobby : Races.BattlegroundsKeys.ToList()).Where(k => k != "ALL").OrderBy(TribePlural).ToList();
         keys.Add(NeutralKey);
         keys.Add(SpellKey);
+        var tribes = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
         foreach (var key in keys)
         {
             var k = key;
-            bool on = _tribe == k;
-            tribes.Children.Add(Chip(TribePlural(k), on, on ? TribeBrush(k) : RowAlt, () => SelectTribe(k), round: true));
+            tribes.Children.Add(FilterItem(TribePlural(k), _tribe == k, TribeBrush(k), () => SelectTribe(k)));
         }
         box.Children.Add(tribes);
+        if (lobby.Count == 0)
+        {
+            var note = Small("Lobby tribes not known yet", Muted, 10);
+            note.Margin = new Thickness(2, 2, 0, 0);
+            box.Children.Add(note);
+        }
 
         // Only keywords some card in this lobby has (like HDT).
         var pool = _engine.Cards.Ready ? Pool() : Array.Empty<BgCard>();
-        box.Children.Add(Small("Mechanics", Muted, 11, bold: true));
-        var mech = new WrapPanel();
+        box.Children.Add(FilterTitle("Mechanics"));
+        var mech = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
         foreach (var (label, _, _) in Keywords.All)
         {
             if (pool.Count > 0 && !pool.Any(c => Keywords.Has(c, label))) continue;
             var l = label;
-            bool on = _keyword == l;
-            mech.Children.Add(Chip(l, on, on ? GroupHeaderBg : RowAlt, () => SelectKeyword(l), round: false));
+            mech.Children.Add(FilterItem(l, _keyword == l, GroupHeaderBg, () => SelectKeyword(l)));
         }
         box.Children.Add(mech);
 
         int hidden = _engine.Settings.HiddenCards.Count;
-        var foot = Small(hidden > 0
-            ? $"You hid {hidden} card{(hidden == 1 ? "" : "s")} (right-click). "
-            : "Right-click a card to hide it if it isn't in your game.", Muted, 10.5);
-        foot.TextWrapping = TextWrapping.Wrap;
-        foot.TextTrimming = TextTrimming.None;
-        box.Children.Add(foot);
         if (hidden > 0)
         {
-            var reset = Clickable(Small("Show hidden cards again", Blue, 11, bold: true), () =>
+            var reset = Clickable(Small($"Show {hidden} hidden card{(hidden == 1 ? "" : "s")}", Blue, 10.5, bold: true), () =>
             {
                 _engine.Settings.HiddenCards.Clear();
                 _engine.Settings.Save();
                 Rebuild(keepScroll: true);
             }, padX: 2, padY: 1);
             reset.HorizontalAlignment = HorizontalAlignment.Left;
+            reset.Margin = new Thickness(0, 4, 0, 0);
             box.Children.Add(reset);
         }
         _filterBox.Child = box;
     }
 
-    private static Border Chip(string text, bool on, Brush bg, Action click, bool round)
+    private static TextBlock FilterTitle(string text)
     {
-        var chip = new Border
+        var t = Small(text, HsGold, 11, bold: true);
+        t.FontFamily = Display;
+        t.Margin = new Thickness(2, 2, 0, 3);
+        return t;
+    }
+
+    /// <summary>A compact filter button; the selected one is lit in its colour.</summary>
+    private static Border FilterItem(string text, bool on, Brush onBrush, Action click)
+    {
+        var label = Small(text, on ? Brushes.White : Frozen(Color.FromRgb(0xE6, 0xD6, 0xB8)), 10.5, bold: on);
+        var item = new Border
         {
-            Background = bg,
-            CornerRadius = new CornerRadius(round ? 9 : 3),
-            Padding = new Thickness(8, 3, 8, 3),
-            Margin = new Thickness(2),
+            Background = on ? onBrush : RowAlt,
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(5, 2, 5, 2),
+            Margin = new Thickness(1.5),
             Cursor = Cursors.Hand,
-            BorderBrush = on ? HsGold : GroupEdge,
+            BorderBrush = on ? HsGold : Brushes.Transparent,
             BorderThickness = new Thickness(1),
-            Child = Small(text, Brushes.White, 11.5, bold: on),
+            Child = label,
         };
-        chip.MouseLeftButtonUp += (_, e) => { click(); e.Handled = true; };
-        return chip;
+        item.MouseLeftButtonUp += (_, e) => { click(); e.Handled = true; };
+        return item;
     }
 
     // ------------------------------------------------------------------ pieces

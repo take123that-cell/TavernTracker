@@ -453,6 +453,17 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
     tp.CombatStarted += c => combats.Add(c);
     foreach (var l in lines) tp.Feed(l);
     Check(tp.Game != null && tp.Game.GameType == "GT_BATTLEGROUNDS" && tp.Game.LocalPlayerName == "Tester#1234", "task-list mode keeps the game type and names from GameState lines");
+    // Shop offers (Bob's side, outside combat) are remembered; the combat board isn't.
+    foreach (var l in new[]
+    {
+        T("23:00:05.0000000", "TAG_CHANGE Entity=GameEntity tag=2022 value=1"),
+        T("23:00:05.1000000", "    FULL_ENTITY - Updating " + Ent(90, "Shop Murloc", "BG_MURLOC_1", 13) + " CardID=BG_MURLOC_1"),
+        T("23:00:05.1000001", "        tag=CONTROLLER value=13"),
+        T("23:00:05.1000002", "        tag=CARDTYPE value=MINION"),
+        T("23:00:05.1000003", "        tag=ZONE value=PLAY"),
+    }) tp.Feed(l);
+    var shop = tp.ShopCardIds();
+    Check(shop.Contains("BG_MURLOC_1") && !shop.Contains("BG26_135"), "shop offers tracked for working out the lobby's tribes (combat boards excluded)");
     var sb = combats.Count == 1 ? SeenBoard.FromCombat(combats[0]) : null;
     Check(combats.Count == 1 && sb != null && sb.HeroCardId == "TB_BaconShop_HERO_75" && sb.Minions.Count == 1 && sb.Minions[0].Attack == 5,
         "combat snapshot taken from the task list: opponent's board is there (one combat, 5/4 Busker)");

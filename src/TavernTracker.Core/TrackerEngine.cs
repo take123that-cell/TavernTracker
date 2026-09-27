@@ -226,10 +226,49 @@ public sealed class TrackerEngine : IDisposable
     /// <summary>Your rating as the game reports it (0 if unknown).</summary>
     public int CurrentRating(bool duos) => duos ? _lastDuos : _lastSolo;
 
-    /// <summary>Tribes in the current lobby (Hearthstone race numbers); empty if unknown.</summary>
+    /// <summary>
+    /// Tribes in the current lobby (Hearthstone race numbers); empty if unknown. Read from the game's memory;
+    /// without it, worked out from the minions Bob offers in the shop (known once all five tribes have shown up).
+    /// </summary>
     public IReadOnlyList<int> LobbyRaces()
     {
-        lock (_lobbyGate) return _liveGameId != null ? _liveRaces : Array.Empty<int>();
+        lock (_lobbyGate)
+        {
+            if (_liveGameId == null) return Array.Empty<int>();
+            if (_liveRaces.Count > 0) return _liveRaces;
+        }
+        return InferredRaces();
+    }
+
+    private (string Key, IReadOnlyList<int> Races) _inferred = ("", Array.Empty<int>());
+
+    private IReadOnlyList<int> InferredRaces()
+    {
+        IReadOnlyCollection<string> seen;
+        string gameId;
+        lock (_parseGate)
+        {
+            var g = _parser?.Game;
+            if (g == null || g.IsOver) return Array.Empty<int>();
+            seen = _parser!.ShopCardIds();
+            gameId = g.Id;
+        }
+        var key = gameId + "|" + seen.Count;
+        if (_inferred.Key == key) return _inferred.Races;
+        var byId = Cards.All().ToDictionary(c => c.Id, StringComparer.Ordinal);
+        var tribes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in seen)
+        {
+            // Golden copies share the tribe of their normal card; only single-tribe minions are proof.
+            if (!byId.TryGetValue(id, out var card) || card.IsSpell || !card.InPool) continue;
+            if (card.Races.Count == 1 && card.Races[0] != "ALL") tribes.Add(card.Races[0]);
+        }
+        IReadOnlyList<int> result = tribes.Count >= 5
+            ? tribes.Select(Races.Number).Where(n => n > 0).OrderBy(n => n).ToList()
+            : Array.Empty<int>();
+        if (result.Count > 0 && _inferred.Races.Count == 0) Log.Info($"Lobby tribes worked out from the shop: {string.Join(", ", tribes)}");
+        _inferred = (key, result);
+        return result;
     }
 
     /// <summary>Everyone in the current lobby with their public rating and how often you've met them.</summary>
