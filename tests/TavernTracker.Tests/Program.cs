@@ -89,7 +89,7 @@ var log = new List<string>
     P("19:03:00.0000002", "TAG_CHANGE Entity=" + Hero(41, "Rakanishu", "TB_BaconShop_HERO_75", 13) + " tag=PLAYER_LEADERBOARD_PLACE value=1"),
     P("19:03:00.0000003", "TAG_CHANGE Entity=" + Hero(40, "Tess Greymane", "TB_BaconShop_HERO_50", 5) + " tag=PLAYER_LEADERBOARD_PLACE value=2"),
     // Noise that must be ignored
-    "D 19:03:01.0000000 PowerTaskList.DebugPrintPower() -     TAG_CHANGE Entity=GameEntity tag=STATE value=COMPLETE",
+    "D 19:03:01.0000000 PowerProcessor.DoTaskListForCard() - TAG_CHANGE Entity=GameEntity tag=STATE value=COMPLETE",
     "garbage line without prefix",
 };
 var endOfGame1 = new List<string>
@@ -403,6 +403,59 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
 
     var export = Environment.GetEnvironmentVariable("TT_EXPORT_COMBAT");
     if (!string.IsNullOrEmpty(export)) File.WriteAllText(export, built.Json);
+}
+
+// ---------------------------------------------------------------- PowerTaskList lines (HDT's source of truth)
+{
+    string T(string t, string s) => $"D {t} PowerTaskList.DebugPrintPower() - {s}";
+    string Ent(int id, string name, string card, int player) => $"[entityName={name} id={id} zone=PLAY zonePos=0 cardId={card} player={player}]";
+    // The server copy (GameState) flips the combat tag before the opponent's minions exist; the task list
+    // plays the minions out first. Snapshots must follow the task list, like HDT.
+    var lines = new List<string>
+    {
+        P("23:00:00.0000001", "CREATE_GAME"),
+        G("23:00:00.0000002", "GameType=GT_BATTLEGROUNDS"),
+        G("23:00:00.0000003", "PlayerID=5, PlayerName=Tester#1234"),
+        G("23:00:00.0000004", "PlayerID=13, PlayerName=The Innkeeper"),
+        P("23:00:00.0000005", "    GameEntity EntityID=1"),
+        P("23:00:00.0000006", "        tag=2022 value=1"),
+        T("23:00:00.1000001", "CREATE_GAME"),
+        T("23:00:00.1000002", "    GameEntity EntityID=1"),
+        T("23:00:00.1000003", "        tag=2022 value=1"),
+        T("23:00:00.1000004", "    Player EntityID=2 PlayerID=5 GameAccountId=[hi=144115198130930503 lo=12345]"),
+        T("23:00:00.1000005", "    Player EntityID=3 PlayerID=13 GameAccountId=[hi=0 lo=0]"),
+        T("23:00:00.1000006", "        tag=HERO_ENTITY value=41"),
+        T("23:00:01.0000000", "    FULL_ENTITY - Updating " + Ent(40, "Me", "TB_BaconShop_HERO_50", 5) + " CardID=TB_BaconShop_HERO_50"),
+        T("23:00:01.0000001", "        tag=CONTROLLER value=5"),
+        T("23:00:01.0000002", "        tag=CARDTYPE value=HERO"),
+        T("23:00:01.0000003", "        tag=ZONE value=PLAY"),
+        T("23:00:01.0000004", "        tag=PLAYER_LEADERBOARD_PLACE value=1"),
+        T("23:00:01.0000010", "    FULL_ENTITY - Updating " + Ent(41, "Rakanishu", "TB_BaconShop_HERO_75", 13) + " CardID=TB_BaconShop_HERO_75"),
+        T("23:00:01.0000011", "        tag=CONTROLLER value=13"),
+        T("23:00:01.0000012", "        tag=CARDTYPE value=HERO"),
+        T("23:00:01.0000013", "        tag=ZONE value=PLAY"),
+        T("23:00:01.0000014", "        tag=PLAYER_LEADERBOARD_PLACE value=2"),
+        // Server copy flips first...
+        P("23:00:02.0000000", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"),
+        // ...the task list creates the opponent's board, then flips.
+        T("23:00:02.1000000", "    FULL_ENTITY - Updating " + Ent(80, "Southsea Busker", "BG26_135", 13) + " CardID=BG26_135"),
+        T("23:00:02.1000001", "        tag=CONTROLLER value=13"),
+        T("23:00:02.1000002", "        tag=CARDTYPE value=MINION"),
+        T("23:00:02.1000003", "        tag=ZONE value=PLAY"),
+        T("23:00:02.1000004", "        tag=ATK value=5"),
+        T("23:00:02.1000005", "        tag=HEALTH value=4"),
+        T("23:00:02.2000000", "TAG_CHANGE Entity=GameEntity tag=TURN value=4"),
+        T("23:00:02.2000001", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"),
+    };
+    var tp = new PowerLogParser("tasklist.log");
+    tp.SetBaseDate(new DateTime(2026, 9, 26, 22, 59, 0));
+    var combats = new List<CombatSnapshot>();
+    tp.CombatStarted += c => combats.Add(c);
+    foreach (var l in lines) tp.Feed(l);
+    Check(tp.Game != null && tp.Game.GameType == "GT_BATTLEGROUNDS" && tp.Game.LocalPlayerName == "Tester#1234", "task-list mode keeps the game type and names from GameState lines");
+    var sb = combats.Count == 1 ? SeenBoard.FromCombat(combats[0]) : null;
+    Check(combats.Count == 1 && sb != null && sb.HeroCardId == "TB_BaconShop_HERO_75" && sb.Minions.Count == 1 && sb.Minions[0].Attack == 5,
+        "combat snapshot taken from the task list: opponent's board is there (one combat, 5/4 Busker)");
 }
 
 // ---------------------------------------------------------------- Firestone card data and pool rules

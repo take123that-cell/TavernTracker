@@ -11,7 +11,11 @@ namespace TavernTracker.Core.Hearthstone;
 ///   D 19:01:02.1234567 GameState.DebugPrintPower() -     FULL_ENTITY - Updating [entityName=X id=42 zone=PLAY zonePos=0 cardId=Y player=7] CardID=Y
 ///   D 19:01:02.1234567 GameState.DebugPrintPower() -         tag=CONTROLLER value=7
 ///   D 19:01:02.1234567 GameState.DebugPrintPower() -     TAG_CHANGE Entity=[... id=42 ...] tag=PLAYER_LEADERBOARD_PLACE value=3
-/// Only the GameState.* lines are used (PowerTaskList.* repeats the same data).
+/// Entities and tags are read from PowerTaskList.DebugPrintPower lines, which is what HDT does: they are
+/// the game's actions in the order the client plays them out. The GameState.DebugPrintPower copy is
+/// the raw server order, where combat can begin before the opponent's board has been created (so a
+/// snapshot taken there sees no minions). GameState lines are only used for game info and choices,
+/// and for very old logs without PowerTaskList lines.
 /// </summary>
 public sealed class PowerLogParser
 {
@@ -61,6 +65,12 @@ public sealed class PowerLogParser
     private TimeSpan _lastTime = TimeSpan.Zero;
     private bool _inGame;
     private bool _dirty;
+
+    // PowerTaskList mode (see the class summary) and game info that arrives before the game object.
+    private bool _taskList;
+    private string _pendingType = "";
+    private Dictionary<int, string> _pendingNames = new();
+    private bool _infoForNextGame;
 
     private sealed class OpenChoice
     {
@@ -112,15 +122,26 @@ public sealed class PowerLogParser
         var body = m.Groups["body"].Value;
 
         bool isGame = body.StartsWith("GameState.DebugPrintGame()", StringComparison.Ordinal);
-        bool isPower = body.StartsWith("GameState.DebugPrintPower()", StringComparison.Ordinal);
+        bool isGsPower = body.StartsWith("GameState.DebugPrintPower()", StringComparison.Ordinal);
+        bool isTaskPower = body.StartsWith("PowerTaskList.DebugPrintPower()", StringComparison.Ordinal);
+        if (isTaskPower && !_taskList) SwitchToTaskList();
+        bool isPower = _taskList ? isTaskPower : isGsPower;
         bool isChoices = body.StartsWith("GameState.DebugPrintEntityChoices()", StringComparison.Ordinal);
         bool isChosen = body.StartsWith("GameState.DebugPrintEntitiesChosen()", StringComparison.Ordinal);
-        if (!isGame && !isPower && !isChoices && !isChosen) return;
+        if (!isGame && !isPower && !isChoices && !isChosen && !isGsPower) return;
 
         var time = ToLocalTime(m.Groups["ts"].Value);
         int dash = body.IndexOf(" - ", StringComparison.Ordinal);
         if (dash < 0) return;
         var data = body[(dash + 3)..].Trim();
+
+        if (isGsPower && _taskList)
+        {
+            // The server announces a new game here a moment before the task list plays it out; the
+            // game info lines that follow belong to that next game.
+            if (data == "CREATE_GAME") ExpectNewGame();
+            return;
+        }
 
         if (isGame) HandleGameInfo(data);
         else if (isPower) HandlePower(data, time);
@@ -143,20 +164,49 @@ public sealed class PowerLogParser
 
     // ------------------------------------------------------------------ handlers
 
+    private void SwitchToTaskList()
+    {
+        _taskList = true;
+        // A game begun from GameState lines is replaced by the task-list copy that follows.
+        if (Game != null && !Game.IsOver)
+        {
+            Game = null;
+            _inGame = false;
+            _choice = null;
+            _choiceBuilding = null;
+            _infoForNextGame = true;
+        }
+    }
+
+    private void ExpectNewGame()
+    {
+        _pendingNames = new Dictionary<int, string>();
+        _pendingType = "";
+        _infoForNextGame = true;
+    }
+
     private void HandleGameInfo(string data)
     {
-        if (!_inGame) return;
+        bool applyNow = _inGame && Game != null && !_infoForNextGame;
         var pm = PlayerName.Match(data);
         if (pm.Success)
         {
-            _playerNames[int.Parse(pm.Groups["id"].Value, CultureInfo.InvariantCulture)] = pm.Groups["name"].Value.Trim();
-            _dirty = true;
+            int id = int.Parse(pm.Groups["id"].Value, CultureInfo.InvariantCulture);
+            var name = pm.Groups["name"].Value.Trim();
+            _pendingNames[id] = name;
+            if (applyNow)
+            {
+                _playerNames[id] = name;
+                _dirty = true;
+            }
             return;
         }
         int eq = data.IndexOf('=');
-        if (eq > 0 && data[..eq].Trim() == "GameType" && Game != null)
+        if (eq > 0 && data[..eq].Trim() == "GameType")
         {
-            Game.GameType = data[(eq + 1)..].Trim();
+            _pendingType = data[(eq + 1)..].Trim();
+            if (!applyNow) return;
+            Game!.GameType = _pendingType;
             _dirty = true;
         }
     }
@@ -165,6 +215,7 @@ public sealed class PowerLogParser
     {
         if (data == "CREATE_GAME")
         {
+            if (!_taskList) ExpectNewGame(); // GameState mode: the info lines come right after
             StartNewGame(time);
             return;
         }
@@ -235,7 +286,7 @@ public sealed class PowerLogParser
         if (Game != null && !Game.IsOver && IsBattlegrounds()) FinishGame(time, abandoned: true);
 
         _entities = new Dictionary<int, Entity>();
-        _playerNames = new Dictionary<int, string>();
+        _playerNames = new Dictionary<int, string>(_pendingNames);
         _playerEntityToId = new Dictionary<int, int>();
         _playerAccountHi = new Dictionary<int, long>();
         _leaderboardEntities = new HashSet<int>();
@@ -245,10 +296,12 @@ public sealed class PowerLogParser
         _announced = false;
         _choice = null;
         _choiceBuilding = null;
+        _infoForNextGame = false;
         Game = new BgGame
         {
             Id = MakeId(time),
             StartedLocal = time,
+            GameType = _pendingType,
         };
     }
 
