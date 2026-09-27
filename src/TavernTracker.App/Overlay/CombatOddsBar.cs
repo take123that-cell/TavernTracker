@@ -81,7 +81,8 @@ public sealed class CombatOddsBar : Border
                 string dmg = o.Won >= o.Lost
                     ? (o.AvgDamageWon > 0 ? $" · avg {o.AvgDamageWon:0.#} dmg dealt" : "")
                     : (o.AvgDamageLost > 0 ? $" · avg {o.AvgDamageLost:0.#} dmg taken" : "");
-                _caption.Text = (state.InCombat ? "Current combat" : $"Last combat (turn {state.Turn})") + dmg;
+                _caption.Text = (state.InCombat ? "Current combat" : $"Last combat (turn {state.Turn})") + dmg
+                                + (state.Message != null ? " · " + state.Message : "");
                 break;
         }
     }

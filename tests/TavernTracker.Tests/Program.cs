@@ -305,6 +305,7 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
         P("21:00:00.0000001", "CREATE_GAME"),
         P("21:00:00.0000002", "    GameEntity EntityID=1"),
         P("21:00:00.0000003", "        tag=2022 value=1"),
+        P("21:00:00.0000003", "        tag=3533 value=1"),
         P("21:00:00.0000004", "    Player EntityID=2 PlayerID=5 GameAccountId=[hi=144115198130930503 lo=12345]"),
         P("21:00:00.0000005", "        tag=HERO_ENTITY value=40"),
         P("21:00:00.0000006", "        tag=BACON_ELEMENTAL_BUFFATKVALUE value=2"),
@@ -368,6 +369,7 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
         P("21:00:03.0000008", "        tag=TAUNT value=1"),
         P("21:00:04.0000000", "TAG_CHANGE Entity=GameEntity tag=TURN value=6"),
         P("21:00:04.0000001", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"),
+        P("21:00:04.0000002", "TAG_CHANGE Entity=GameEntity tag=3533 value=0"),
     };
     var cp = new PowerLogParser(logFile);
     cp.SetBaseDate(new DateTime(2026, 9, 26, 20, 59, 0));
@@ -399,7 +401,7 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
               TavernTracker.Core.Combat.SimCardData.Decode(raw) == "[{\"id\":\"X\"}]", "simulator card file read gzipped or plain");
     }
     var duo = TavernTracker.Core.Combat.BattleInputBuilder.Build(new CombatSnapshot { Duos = true }, Array.Empty<int>());
-    Check(duo.Json == null && duo.Problem!.Contains("Duos"), "duos combats explained, not mis-simulated");
+    Check(duo.Json == null && duo.Problem != null, "a duos snapshot without sides gives a reason, not bad odds");
 
     var export = Environment.GetEnvironmentVariable("TT_EXPORT_COMBAT");
     if (!string.IsNullOrEmpty(export)) File.WriteAllText(export, built.Json);
@@ -422,9 +424,15 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
         T("23:00:00.1000001", "CREATE_GAME"),
         T("23:00:00.1000002", "    GameEntity EntityID=1"),
         T("23:00:00.1000003", "        tag=2022 value=1"),
+        T("23:00:00.1000003", "        tag=3533 value=1"),
         T("23:00:00.1000004", "    Player EntityID=2 PlayerID=5 GameAccountId=[hi=144115198130930503 lo=12345]"),
         T("23:00:00.1000005", "    Player EntityID=3 PlayerID=13 GameAccountId=[hi=0 lo=0]"),
-        T("23:00:00.1000006", "        tag=HERO_ENTITY value=41"),
+        T("23:00:00.1000006", "        tag=HERO_ENTITY value=45"),
+        // Bob sits on the opponent's side between fights; the snapshot must not take him for the opponent.
+        T("23:00:00.2000000", "    FULL_ENTITY - Updating " + Ent(45, "Bob", "TB_BaconShopBob", 13) + " CardID=TB_BaconShopBob"),
+        T("23:00:00.2000001", "        tag=CONTROLLER value=13"),
+        T("23:00:00.2000002", "        tag=CARDTYPE value=HERO"),
+        T("23:00:00.2000003", "        tag=ZONE value=PLAY"),
         T("23:00:01.0000000", "    FULL_ENTITY - Updating " + Ent(40, "Me", "TB_BaconShop_HERO_50", 5) + " CardID=TB_BaconShop_HERO_50"),
         T("23:00:01.0000001", "        tag=CONTROLLER value=5"),
         T("23:00:01.0000002", "        tag=CARDTYPE value=HERO"),
@@ -437,7 +445,8 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
         T("23:00:01.0000014", "        tag=PLAYER_LEADERBOARD_PLACE value=2"),
         // Server copy flips first...
         P("23:00:02.0000000", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"),
-        // ...the task list creates the opponent's board, then flips.
+        // ...the task list: "battle starting", then the opponent's board, then "combat set up".
+        T("23:00:02.0500000", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"),
         T("23:00:02.1000000", "    FULL_ENTITY - Updating " + Ent(80, "Southsea Busker", "BG26_135", 13) + " CardID=BG26_135"),
         T("23:00:02.1000001", "        tag=CONTROLLER value=13"),
         T("23:00:02.1000002", "        tag=CARDTYPE value=MINION"),
@@ -445,7 +454,7 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
         T("23:00:02.1000004", "        tag=ATK value=5"),
         T("23:00:02.1000005", "        tag=HEALTH value=4"),
         T("23:00:02.2000000", "TAG_CHANGE Entity=GameEntity tag=TURN value=4"),
-        T("23:00:02.2000001", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"),
+        T("23:00:02.2000001", "TAG_CHANGE Entity=GameEntity tag=3533 value=0"),
     };
     var tp = new PowerLogParser("tasklist.log");
     tp.SetBaseDate(new DateTime(2026, 9, 26, 22, 59, 0));
@@ -467,6 +476,74 @@ static LeaderboardClient.Response Page(int total, params (int rank, string name,
     var sb = combats.Count == 1 ? SeenBoard.FromCombat(combats[0]) : null;
     Check(combats.Count == 1 && sb != null && sb.HeroCardId == "TB_BaconShop_HERO_75" && sb.Minions.Count == 1 && sb.Minions[0].Attack == 5,
         "combat snapshot taken from the task list: opponent's board is there (one combat, 5/4 Busker)");
+}
+
+// ---------------------------------------------------------------- tag names vs numbers, duos combats
+{
+    string T(string t, string s) => $"D {t} PowerTaskList.DebugPrintPower() - {s}";
+    string Ent(int id, string card, int player) => $"[entityName=x id={id} zone=PLAY zonePos=0 cardId={card} player={player}]";
+    IEnumerable<string> Minion(string t, int id, string card, int player, int atk, int hp) => new[]
+    {
+        T(t + "0", "    FULL_ENTITY - Updating " + Ent(id, card, player) + " CardID=" + card),
+        T(t + "1", "        tag=CONTROLLER value=" + player),
+        T(t + "2", "        tag=CARDTYPE value=MINION"),
+        T(t + "3", "        tag=ZONE value=PLAY"),
+        T(t + "4", "        tag=ATK value=" + atk),
+        T(t + "5", "        tag=HEALTH value=" + hp),
+    };
+    IEnumerable<string> HeroE(string t, int id, string card, int player) => new[]
+    {
+        T(t + "0", "    FULL_ENTITY - Updating " + Ent(id, card, player) + " CardID=" + card),
+        T(t + "1", "        tag=CONTROLLER value=" + player),
+        T(t + "2", "        tag=CARDTYPE value=HERO"),
+        T(t + "3", "        tag=ZONE value=PLAY"),
+        T(t + "4", "        tag=HEALTH value=30"),
+    };
+    var lines = new List<string>
+    {
+        P("20:00:00.0000001", "CREATE_GAME"),
+        G("20:00:00.0000002", "GameType=GT_BATTLEGROUNDS_DUO"),
+        G("20:00:00.0000003", "PlayerID=5, PlayerName=Tester#1234"),
+        T("20:00:00.1000001", "CREATE_GAME"),
+        T("20:00:00.1000002", "    GameEntity EntityID=1"),
+        // Named the way a newer client might log them.
+        T("20:00:00.1000003", "        tag=BG_BATTLE_STARTING value=1"),
+        T("20:00:00.1000004", "        tag=IGNORE_MODIFIER_HERO_POWER_CHECK value=1"),
+        T("20:00:00.1000005", "    Player EntityID=2 PlayerID=5 GameAccountId=[hi=144115198130930503 lo=12345]"),
+        T("20:00:00.1000006", "    Player EntityID=3 PlayerID=13 GameAccountId=[hi=0 lo=0]"),
+    };
+    lines.AddRange(HeroE("20:00:01.000000", 40, "HERO_ME", 5));
+    lines.AddRange(HeroE("20:00:01.100000", 41, "HERO_THEM", 13));
+    lines.AddRange(Minion("20:00:01.200000", 60, "BG_M1", 5, 3, 3));
+    lines.AddRange(Minion("20:00:01.300000", 61, "BG_M2", 13, 4, 4));
+    lines.Add(T("20:00:02.0000000", "TAG_CHANGE Entity=GameEntity tag=TURN value=4"));
+    lines.Add(T("20:00:02.0000001", "TAG_CHANGE Entity=GameEntity tag=2022 value=0"));
+    lines.Add(T("20:00:02.0000002", "TAG_CHANGE Entity=GameEntity tag=3533 value=0"));
+    // Teammates step in: fresh hero copies and boards on both sides, then the set-up tag flips again.
+    lines.Add(T("20:00:03.0000000", "TAG_CHANGE Entity=GameEntity tag=3533 value=1"));
+    lines.AddRange(HeroE("20:00:03.100000", 70, "HERO_MATE", 5));
+    lines.AddRange(HeroE("20:00:03.200000", 71, "HERO_THEIR_MATE", 13));
+    lines.AddRange(Minion("20:00:03.300000", 80, "BG_M3", 5, 5, 5));
+    lines.Add(T("20:00:03.4000000", "TAG_CHANGE Entity=GameEntity tag=IGNORE_MODIFIER_HERO_POWER_CHECK value=0"));
+    var dp = new PowerLogParser("duos.log");
+    dp.SetBaseDate(new DateTime(2026, 9, 27, 19, 59, 0));
+    var snaps = new List<CombatSnapshot>();
+    dp.CombatStarted += snaps.Add;
+    foreach (var l in lines) dp.Feed(l);
+    Check(snaps.Count == 2 && snaps[0].SetupIndex == 0 && snaps[1].SetupIndex == 1 && snaps[0].CombatIndex == snaps[1].CombatIndex,
+        $"combat tags read by name or number; duos gives one snapshot per set-up (got {snaps.Count})");
+    if (snaps.Count == 2)
+    {
+        Check(TavernTracker.Core.Combat.BattleInputBuilder.HeroCard(snaps[0], 13) == "HERO_THEM" && TavernTracker.Core.Combat.BattleInputBuilder.HeroCard(snaps[1], 13) == "HERO_THEIR_MATE",
+            "teammate set-up shows the teammates' heroes");
+        var duo = TavernTracker.Core.Combat.BattleInputBuilder.BuildDuos(snaps[0], snaps[1], snaps[1], new[] { 20, 14 }, 100);
+        var root = System.Text.Json.Nodes.JsonNode.Parse(duo.Json!)!;
+        Check(!duo.Partial && (string)root["playerBoard"]!["player"]!["cardId"]! == "HERO_ME" && (string)root["playerTeammateBoard"]!["player"]!["cardId"]! == "HERO_MATE"
+              && (string)root["opponentTeammateBoard"]!["player"]!["cardId"]! == "HERO_THEIR_MATE",
+            "duos simulator input has both pairs");
+        var partial = TavernTracker.Core.Combat.BattleInputBuilder.BuildDuos(snaps[0], null, null, new[] { 20 }, 100);
+        Check(partial.Json != null && partial.Partial, "duos odds still run without the teammates (marked partial)");
+    }
 }
 
 // ---------------------------------------------------------------- Firestone card data and pool rules

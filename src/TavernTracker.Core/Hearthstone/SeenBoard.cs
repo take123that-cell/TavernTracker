@@ -31,13 +31,7 @@ public sealed class SeenBoard
     {
         if (snap.OpponentPlayerId == 0) return null;
         int pid = snap.OpponentPlayerId;
-        CombatEntity? hero = null;
-        if (snap.PlayerEntities.TryGetValue(pid, out var player))
-        {
-            int heroId = player.Tag("HERO_ENTITY", 27);
-            hero = snap.Entities.FirstOrDefault(e => e.Id == heroId);
-        }
-        hero ??= snap.Entities.FirstOrDefault(e => e.IsHero && e.InPlay && e.Controller == pid);
+        var hero = snap.HeroOf(pid);
         if (hero == null || hero.CardId.Length == 0) return null;
 
         var minions = snap.Entities

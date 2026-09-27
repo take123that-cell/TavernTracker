@@ -74,6 +74,9 @@ public sealed class PowerLogParser
 
     // Minions Bob offers in the shop (for working out the lobby's tribes without memory reading).
     private bool _inCombat;
+    private bool _combatPending;
+    private int _combatIndex;
+    private int _setupIndex;
     private HashSet<int> _shopEntities = new();
 
     private sealed class OpenChoice
@@ -296,6 +299,7 @@ public sealed class PowerLogParser
         _leaderboardEntities = new HashSet<int>();
         _shopEntities = new HashSet<int>();
         _inCombat = false;
+        _combatPending = false;
         _current = null;
         _gameEntityId = 1;
         _inGame = true;
@@ -315,32 +319,60 @@ public sealed class PowerLogParser
 
     private void SetTag(Entity e, string tag, string value, DateTime time)
     {
-        e.Tags.TryGetValue(tag, out var previous);
-        e.Tags[tag] = value;
+        // The client logs a tag by name when it has one ("ATK") and by number otherwise ("2022"), and that
+        // can change between game versions. Keep both spellings so every reader finds it, and switch on
+        // the canonical name.
+        string? previous;
+        int number = GameTags.Number(tag);
+        if (number >= 0)
+        {
+            var numberKey = number.ToString(CultureInfo.InvariantCulture);
+            var name = GameTags.Name(number);
+            if (!e.Tags.TryGetValue(numberKey, out previous) && name != null) e.Tags.TryGetValue(name, out previous);
+            e.Tags[numberKey] = value;
+            if (name != null) e.Tags[name] = value;
+            if (!ReferenceEquals(name, tag) && name != tag) e.Tags[tag] = value;
+            tag = name ?? numberKey;
+        }
+        else
+        {
+            e.Tags.TryGetValue(tag, out previous);
+            e.Tags[tag] = value;
+        }
         switch (tag)
         {
-            // The game entity flips this from 1 to 0 when a combat has been set up (HDT uses the same signal:
-            // 2022 in solos, 3533 in duos). The client logs these tags as numbers.
-            case "2022":
-            case "3533":
-                if (e.Id == _gameEntityId && previous == "1" && value == "0" && IsBattlegrounds())
+            // Same signals as HDT (TagChangeActions): tag 2022 going 1→0 means a battle is starting (shopping
+            // is over); tag 3533 going 1→0 means the combat has been set up, both boards included. HDT takes
+            // its board snapshot on 3533, so we snapshot (and simulate) there too. The client logs both as numbers.
+            case "BG_BATTLE_STARTING": // 2022
+                if (previous == "1" && value == "0" && IsBattlegrounds())
                 {
-                    bool duos = Game?.IsDuos ?? false;
-                    if ((tag == "2022") != duos)
-                    {
-                        _inCombat = true;
-                        // The opponent's board is set up just before this; it isn't Bob's shop.
-                        int me = Game?.LocalPlayerId ?? 0;
-                        _shopEntities.RemoveWhere(id => _entities.TryGetValue(id, out var x)
-                            && x.Str("ZONE") is "PLAY" or "1" && x.Int("CONTROLLER") != me);
-                        RaiseCombat(time);
-                    }
+                    _inCombat = true;
+                    _combatPending = true;
+                    _combatIndex++;
+                    _setupIndex = 0;
                 }
-                else if (e.Id == _gameEntityId && previous == "0" && value == "1")
+                else if (previous == "0" && value == "1")
                 {
                     _inCombat = false;
+                    _combatPending = false;
                     CombatEnded?.Invoke();
                 }
+                break;
+            case "IGNORE_MODIFIER_HERO_POWER_CHECK": // 3533: combat set up
+                if (previous == "1" && value == "0" && IsBattlegrounds())
+                {
+                    // Every set-up is a snapshot. In Duos the game sets up each pairing in turn (the players
+                    // who fight first, then the teammates) and the engine combines them, like HDT's Bob's Buddy.
+                    _inCombat = true;
+                    _combatPending = true;
+                    TryRaiseCombat(time);
+                }
+                break;
+            case "PROPOSED_ATTACKER":
+            case "ATTACKING":
+                // Fallback if the set-up tag never shows up: by the first attack both boards are on the table.
+                if (_combatPending && value != "0") TryRaiseCombat(time);
                 break;
             case "ZONE":
                 // Outside combat, minions appearing on the other side of the table are Bob's shop offers.
@@ -367,6 +399,18 @@ public sealed class PowerLogParser
         }
     }
 
+    /// <summary>Raises CombatStarted once per combat.</summary>
+    private void TryRaiseCombat(DateTime time)
+    {
+        if (!_combatPending) return;
+        _combatPending = false;
+        // The opponent's board is on the table now; it isn't Bob's shop.
+        int me = Game?.LocalPlayerId ?? 0;
+        _shopEntities.RemoveWhere(id => _entities.TryGetValue(id, out var x)
+            && (x.Str("ZONE") is "PLAY" or "1") && x.Int("CONTROLLER") != me);
+        RaiseCombat(time);
+    }
+
     private void RaiseCombat(DateTime time)
     {
         if (CombatStarted == null || Game == null) return;
@@ -388,6 +432,8 @@ public sealed class PowerLogParser
             LocalPlayerId = me,
             OpponentPlayerId = opponent,
             GameEntity = copies.FirstOrDefault(x => x.Id == _gameEntityId),
+            CombatIndex = _combatIndex,
+            SetupIndex = _setupIndex++,
             PlayerEntities = players,
             Entities = copies,
             TakenLocal = time,

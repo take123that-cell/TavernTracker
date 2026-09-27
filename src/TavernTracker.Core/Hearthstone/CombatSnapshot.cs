@@ -55,4 +55,30 @@ public sealed class CombatSnapshot
     public IReadOnlyDictionary<int, CombatEntity> PlayerEntities { get; init; } = new Dictionary<int, CombatEntity>();
     public IReadOnlyList<CombatEntity> Entities { get; init; } = Array.Empty<CombatEntity>();
     public DateTime TakenLocal { get; init; }
+    /// <summary>Which combat of the game this is (counts battle starts).</summary>
+    public int CombatIndex { get; init; }
+    /// <summary>0 for the first set-up of a combat; Duos sets up the teammates' boards afterwards (1, 2…).</summary>
+    public int SetupIndex { get; init; }
+
+    /// <summary>
+    /// The hero fighting for this player id, found the way HDT does it: the hero in play on that side.
+    /// The newest copy wins (each combat creates a fresh one) and Bob is skipped. The player's
+    /// HERO_ENTITY tag is only a fallback, because on the opponent's side it can still point at Bob.
+    /// </summary>
+    public CombatEntity? HeroOf(int playerId)
+    {
+        var hero = Entities
+            .Where(e => e.IsHero && e.InPlay && e.Controller == playerId && e.CardId.Length > 0 && !IsBob(e.CardId))
+            .OrderByDescending(e => e.Id)
+            .FirstOrDefault();
+        if (hero != null) return hero;
+        if (PlayerEntities.TryGetValue(playerId, out var player))
+        {
+            int id = player.Tag("HERO_ENTITY", 27);
+            return Entities.FirstOrDefault(e => e.Id == id && e.CardId.Length > 0);
+        }
+        return null;
+    }
+
+    private static bool IsBob(string cardId) => cardId.Contains("BaconShopBob", StringComparison.OrdinalIgnoreCase);
 }

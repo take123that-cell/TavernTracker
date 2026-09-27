@@ -54,6 +54,18 @@ public sealed class V8CombatSimulator : ICombatSimulator
             }
 
             Status = "Starting the simulator…";
+            // In the single-file exe the V8 engine DLL is unpacked to a temporary folder; tell ClearScript
+            // where to look (it otherwise searches next to the app only).
+            var searchDirs = new[]
+                {
+                    AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") as string,
+                    AppContext.BaseDirectory,
+                    Path.GetDirectoryName(Environment.ProcessPath),
+                }
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .SelectMany(d => d!.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            Microsoft.ClearScript.HostSettings.AuxiliarySearchPath = string.Join(";", searchDirs);
             var engine = new V8ScriptEngine();
             engine.Execute("tt-sim.js", LoadBundle());
             object count = engine.Script.TavernSim.loadCards(cards);

@@ -392,24 +392,93 @@ public sealed class TrackerEngine : IDisposable
             Log.Error("Reading the opponent's board failed", ex);
         }
 
+        Log.Info($"Combat {snap.CombatIndex}.{snap.SetupIndex} on turn {snap.Turn}: you ({BattleInputBuilder.HeroCard(snap, snap.LocalPlayerId)}) vs {BattleInputBuilder.HeroCard(snap, snap.OpponentPlayerId)}"
+                 + $" · {snap.Entities.Count(e => e.IsMinion && e.InPlay && e.Controller == snap.OpponentPlayerId)} enemy minions{(snap.Duos ? " (duos)" : "")}");
+
         if (_simulator == null || !Settings.ShowCombatOdds) return;
         // Combats replayed from the log at startup aren't live.
         if (DateTime.Now - snap.TakenLocal > TimeSpan.FromMinutes(2)) return;
 
+        if (snap.Duos)
+        {
+            OnDuosSetup(snap);
+            return;
+        }
+        Simulate(snap, () => BattleInputBuilder.Build(snap, LobbyRaces().ToList()));
+    }
+
+    // Duos: the first set-up of a combat is the pair that fights first; later set-ups swap in a teammate.
+    private readonly object _duosGate = new();
+    private (string Key, CombatSnapshot First, CombatSnapshot? PlayerMate, CombatSnapshot? OpponentMate, bool Full)? _duos;
+
+    private void OnDuosSetup(CombatSnapshot snap)
+    {
+        var key = $"{snap.GameId}|{snap.Turn}|{snap.CombatIndex}";
+        bool runFull = false, startTimer = false;
+        lock (_duosGate)
+        {
+            if (_duos == null || _duos.Value.Key != key)
+            {
+                _duos = (key, snap, null, null, false);
+                startTimer = true;
+            }
+            else
+            {
+                var d = _duos.Value;
+                string myFirst = BattleInputBuilder.HeroCard(d.First, d.First.LocalPlayerId);
+                string theirFirst = BattleInputBuilder.HeroCard(d.First, d.First.OpponentPlayerId);
+                string myNow = BattleInputBuilder.HeroCard(snap, snap.LocalPlayerId);
+                string theirNow = BattleInputBuilder.HeroCard(snap, snap.OpponentPlayerId);
+                if (d.PlayerMate == null && myNow.Length > 0 && myNow != myFirst) d.PlayerMate = snap;
+                if (d.OpponentMate == null && theirNow.Length > 0 && theirNow != theirFirst) d.OpponentMate = snap;
+                if (!d.Full && d.PlayerMate != null && d.OpponentMate != null)
+                {
+                    d.Full = true;
+                    runFull = true;
+                }
+                _duos = d;
+            }
+        }
+
+        if (startTimer)
+        {
+            // Show "simulating" right away; if the teammates' boards don't all show up, run with what we have.
+            _combat = new CombatState { Phase = CombatPhase.Running, Turn = snap.Turn, GameId = snap.GameId, InCombat = true };
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2500).ConfigureAwait(false);
+                (string Key, CombatSnapshot First, CombatSnapshot? PlayerMate, CombatSnapshot? OpponentMate, bool Full) d;
+                lock (_duosGate)
+                {
+                    if (_duos == null || _duos.Value.Key != key || _duos.Value.Full) return;
+                    d = _duos.Value;
+                }
+                Simulate(d.First, () => BattleInputBuilder.BuildDuos(d.First, d.PlayerMate, d.OpponentMate, LobbyRaces().ToList()));
+            });
+        }
+        if (runFull)
+        {
+            var d = _duos!.Value;
+            Simulate(d.First, () => BattleInputBuilder.BuildDuos(d.First, d.PlayerMate, d.OpponentMate, LobbyRaces().ToList()));
+        }
+    }
+
+    private void Simulate(CombatSnapshot snap, Func<BattleInputBuilder.Result> build)
+    {
         int seq = Interlocked.Increment(ref _combatSeq);
         _combat = new CombatState { Phase = CombatPhase.Running, Turn = snap.Turn, GameId = snap.GameId, InCombat = true };
-        var tribes = LobbyRaces().ToList();
         _ = Task.Run(async () =>
         {
             CombatState result;
             try
             {
-                var input = BattleInputBuilder.Build(snap, tribes);
+                var input = build();
                 if (input.Json == null)
                 {
+                    Log.Info($"No odds for turn {snap.Turn}: {input.Problem}");
                     result = new CombatState { Phase = CombatPhase.Unavailable, Message = input.Problem, Turn = snap.Turn, GameId = snap.GameId, InCombat = true };
                 }
-                else if (!await _simulator.PrepareAsync().ConfigureAwait(false))
+                else if (!await _simulator!.PrepareAsync().ConfigureAwait(false))
                 {
                     result = new CombatState { Phase = CombatPhase.Unavailable, Message = _simulator.Status, Turn = snap.Turn, GameId = snap.GameId, InCombat = true };
                 }
@@ -417,8 +486,12 @@ public sealed class TrackerEngine : IDisposable
                 {
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     var odds = _simulator.Run(input.Json);
-                    Log.Info($"Combat turn {snap.Turn}: win {odds.Won:0.#}% tie {odds.Tied:0.#}% loss {odds.Lost:0.#}% ({odds.Simulations} sims, {sw.ElapsedMilliseconds} ms)");
-                    result = new CombatState { Phase = CombatPhase.Done, Odds = odds, Turn = snap.Turn, GameId = snap.GameId, InCombat = true };
+                    Log.Info($"Combat turn {snap.Turn}: win {odds.Won:0.#}% tie {odds.Tied:0.#}% loss {odds.Lost:0.#}% ({odds.Simulations} sims, {sw.ElapsedMilliseconds} ms{(input.Partial ? ", duos partial" : "")})");
+                    result = new CombatState
+                    {
+                        Phase = CombatPhase.Done, Odds = odds, Turn = snap.Turn, GameId = snap.GameId, InCombat = true,
+                        Message = input.Partial ? "Partial: a teammate's board wasn't visible yet" : null,
+                    };
                 }
             }
             catch (Exception ex)

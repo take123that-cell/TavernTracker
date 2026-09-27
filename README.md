@@ -13,7 +13,7 @@ A free, standalone Hearthstone Battlegrounds tracker for Windows, with an MMR tr
 - **Opponents' last boards** (like HDT): hover a player's portrait on the in-game leaderboard and the board they had when you last fought them appears at the top of the screen, with attack/health, golden, taunt, divine shield, reborn, venomous and windfury marks, their tier, and how many turns ago that was. It's recorded automatically at the start of every fight. The hovered portrait is read from the game like HDT/Firestone do; with memory reading off, the cursor position is used instead (solo).
 - **Pick stats**: when you're offered heroes, trinkets or quests, each option gets HDT-style boxes above it: **Avg Placement · Tier · Pick Rate** (quests show **Completion %** and the average turn it's done). Quests also list the three best tribes for the reward, with an ✕ on tribes that aren't in your lobby. Hero averages are adjusted for your lobby's tribes, the way Firestone does it.
 - **Turn counter** and your hero, place and tier.
-- **Combat odds** (top centre): LETHAL · WIN · TIE · LOSS · LETHAL for every fight, plus average damage, using Firestone's open-source simulator. The last result stays up during shopping. Solo only for now.
+- **Combat odds** (top centre): LETHAL · WIN · TIE · LOSS · LETHAL for every fight, plus average damage, using Firestone's open-source simulator. The last result stays up during shopping. Works in Duos too (both pairs; marked partial if a teammate board wasn't visible yet).
 - Panel **size** and **transparency** are adjustable in Settings.
 
 **Your games (from Hearthstone's own game log)**
@@ -97,7 +97,6 @@ tests/TavernTracker.Tests/  test runner: dotnet run --project tests/TavernTracke
 
 ## Roadmap
 
-- Combat odds in Duos.
 - Opponents' last-seen boards when you hover the in-game leaderboard.
 - Hero and minion images from HearthstoneJSON, hero stats across all your games, export to CSV.
 

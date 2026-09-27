@@ -28,25 +28,68 @@ public static class BattleInputBuilder
         /// <summary>Why no simulation is possible (shown instead of odds).</summary>
         public string? Problem { get; init; }
         public int PlayerMinions { get; init; }
+        /// <summary>Duos odds without one or both teammates' boards.</summary>
+        public bool Partial { get; init; }
         public int OpponentMinions { get; init; }
     }
 
     public static Result Build(CombatSnapshot snap, IReadOnlyCollection<int> tribes, int simulations = 5000)
     {
-        if (snap.Duos) return new Result { Problem = "Duos odds aren't supported yet" };
+        if (snap.Duos) return BuildDuos(snap, null, null, tribes, simulations);
         if (snap.LocalPlayerId == 0 || snap.OpponentPlayerId == 0) return new Result { Problem = "Couldn't identify the two sides" };
-
-        var byId = snap.Entities.ToDictionary(e => e.Id);
-        var attached = snap.Entities
-            .Where(e => e.IsEnchantment && e.Tag("ATTACHED", 40) > 0 && (e.InPlay || e.Tags.ContainsKey("ZONE") == false))
-            .GroupBy(e => e.Tag("ATTACHED", 40))
-            .ToDictionary(g => g.Key, g => g.ToList());
-
+        var (byId, attached) = Index(snap);
         var player = Side(snap, snap.LocalPlayerId, friendly: true, byId, attached, out var playerProblem);
         if (player == null) return new Result { Problem = playerProblem };
         var opponent = Side(snap, snap.OpponentPlayerId, friendly: false, byId, attached, out var opponentProblem);
         if (opponent == null) return new Result { Problem = opponentProblem };
+        return Assemble(snap, player, opponent, null, null, tribes, simulations);
+    }
 
+    /// <summary>
+    /// Duos: the pair that fights first comes from the first set-up; the teammates (who step in when a board
+    /// is wiped out) from the later set-ups, when they've been seen. Missing teammates are left out.
+    /// </summary>
+    public static Result BuildDuos(CombatSnapshot first, CombatSnapshot? playerTeammate, CombatSnapshot? opponentTeammate,
+        IReadOnlyCollection<int> tribes, int simulations = 4000)
+    {
+        if (first.LocalPlayerId == 0 || first.OpponentPlayerId == 0) return new Result { Problem = "Couldn't identify the two sides" };
+        var (byId, attached) = Index(first);
+        var player = Side(first, first.LocalPlayerId, friendly: true, byId, attached, out var p1);
+        if (player == null) return new Result { Problem = p1 };
+        var opponent = Side(first, first.OpponentPlayerId, friendly: false, byId, attached, out var p2);
+        if (opponent == null) return new Result { Problem = p2 };
+
+        JsonObject? pt = null, ot = null;
+        if (playerTeammate != null)
+        {
+            var (b, a) = Index(playerTeammate);
+            pt = Side(playerTeammate, playerTeammate.LocalPlayerId, friendly: true, b, a, out _);
+        }
+        if (opponentTeammate != null)
+        {
+            var (b, a) = Index(opponentTeammate);
+            ot = Side(opponentTeammate, opponentTeammate.OpponentPlayerId, friendly: false, b, a, out _);
+        }
+        return Assemble(first, player, opponent, pt, ot, tribes, simulations);
+    }
+
+    /// <summary>Hero card id on one side of a snapshot ("" if unknown).</summary>
+    public static string HeroCard(CombatSnapshot snap, int playerId) => snap.HeroOf(playerId)?.CardId ?? "";
+
+    private static (Dictionary<int, CombatEntity> ById, Dictionary<int, List<CombatEntity>> Attached) Index(CombatSnapshot snap)
+    {
+        var byId = new Dictionary<int, CombatEntity>();
+        foreach (var e in snap.Entities) byId[e.Id] = e;
+        var attached = snap.Entities
+            .Where(e => e.IsEnchantment && e.Tag("ATTACHED", 40) > 0 && (e.InPlay || e.Tags.ContainsKey("ZONE") == false))
+            .GroupBy(e => e.Tag("ATTACHED", 40))
+            .ToDictionary(g => g.Key, g => g.ToList());
+        return (byId, attached);
+    }
+
+    private static Result Assemble(CombatSnapshot snap, JsonObject player, JsonObject opponent, JsonObject? playerTeammate,
+        JsonObject? opponentTeammate, IReadOnlyCollection<int> tribes, int simulations)
+    {
         var gameState = new JsonObject
         {
             ["currentTurn"] = Math.Max(1, snap.Turn),
@@ -70,11 +113,14 @@ public static class BattleInputBuilder
             },
             ["gameState"] = gameState,
         };
+        if (playerTeammate != null) input["playerTeammateBoard"] = playerTeammate;
+        if (opponentTeammate != null) input["opponentTeammateBoard"] = opponentTeammate;
         return new Result
         {
             Json = input.ToJsonString(),
             PlayerMinions = ((JsonArray)player["board"]!).Count,
             OpponentMinions = ((JsonArray)opponent["board"]!).Count,
+            Partial = snap.Duos && (playerTeammate == null || opponentTeammate == null),
         };
     }
 
@@ -88,9 +134,7 @@ public static class BattleInputBuilder
             return null;
         }
 
-        var heroId = playerEntity.Tag("HERO_ENTITY", 27);
-        byId.TryGetValue(heroId, out var hero);
-        hero ??= snap.Entities.FirstOrDefault(e => e.IsHero && e.InPlay && e.Controller == playerId);
+        var hero = snap.HeroOf(playerId);
         if (hero == null || string.IsNullOrEmpty(hero.CardId))
         {
             problem = friendly ? "Your hero wasn't found" : "Opponent's hero wasn't found";
