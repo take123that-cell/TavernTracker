@@ -1,0 +1,12 @@
+{
+  "name": "tavern-tracker-sim",
+  "private": true,
+  "description": "Bundles Firestone's Battlegrounds simulator for Tavern Tracker",
+  "license": "MIT",
+  "dependencies": {
+    "@firestone-hs/simulate-bgs-battle": "1.1.759"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="wood" cx="50%" cy="40%" r="62%">
+      <stop offset="0" stop-color="#83532B"/>
+      <stop offset="0.55" stop-color="#5A3519"/>
+      <stop offset="1" stop-color="#2B180A"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFEAB0"/>
+      <stop offset="0.25" stop-color="#E8B44A"/>
+      <stop offset="0.5" stop-color="#A8701A"/>
+      <stop offset="0.75" stop-color="#D9A03A"/>
+      <stop offset="1" stop-color="#8A5A14"/>
+    </linearGradient>
+    <linearGradient id="rimInner" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#FFE3A0"/>
+      <stop offset="1" stop-color="#7A4E12"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF0BE"/>
+      <stop offset="0.45" stop-color="#F2C14E"/>
+      <stop offset="1" stop-color="#B07618"/>
+    </linearGradient>
+    <linearGradient id="stave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4E2F14"/>
+      <stop offset="0.18" stop-color="#8C5A2C"/>
+      <stop offset="0.42" stop-color="#B07B43"/>
+      <stop offset="0.62" stop-color="#8A5829"/>
+      <stop offset="1" stop-color="#3E250F"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7A4E12"/>
+      <stop offset="0.3" stop-color="#F7D883"/>
+      <stop offset="0.45" stop-color="#FFF2C6"/>
+      <stop offset="0.7" stop-color="#C58B2A"/>
+      <stop offset="1" stop-color="#6E450F"/>
+    </linearGradient>
+    <linearGradient id="handle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE7A6"/>
+      <stop offset="0.5" stop-color="#D59B35"/>
+      <stop offset="1" stop-color="#8A5A14"/>
+    </linearGradient>
+    <radialGradient id="foam" cx="38%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#FFFFFA"/>
+      <stop offset="0.6" stop-color="#FBEFD2"/>
+      <stop offset="1" stop-color="#E2C891"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFC56A" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#FFC56A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="50%" cy="45%" r="55%">
+      <stop offset="0.7" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.45"/>
+    </radialGradient>
+    <clipPath id="inner"><circle cx="256" cy="256" r="206"/></clipPath>
+    <clipPath id="mugclip">
+      <path d="M180 236 L332 236 L325 408 Q323 420 310 420 L202 420 Q189 420 187 408 Z"/>
+    </clipPath>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#120802" flood-opacity="0.7"/>
+    </filter>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="1.2"/>
+    </filter>
+  </defs>
+
+  <!-- outer brass ring -->
+  <circle cx="256" cy="256" r="250" fill="#1A0E05"/>
+  <circle cx="256" cy="256" r="243" fill="url(#rim)"/>
+  <circle cx="256" cy="256" r="228" fill="url(#rimInner)"/>
+  <circle cx="256" cy="256" r="222" fill="#2A1708"/>
+  <!-- dial ticks on the ring: a rank gauge -->
+  <g stroke="#5A3810" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <line x1="483.5" y1="296.1" x2="491.4" y2="297.5"/>
+      <line x1="473.1" y1="335.0" x2="480.6" y2="337.7"/>
+      <line x1="454.3" y1="370.5" x2="464.7" y2="376.5"/>
+      <line x1="433.0" y1="404.5" x2="439.1" y2="409.6"/>
+      <line x1="404.5" y1="433.0" x2="409.6" y2="439.1"/>
+      <line x1="370.5" y1="454.3" x2="376.5" y2="464.7"/>
+      <line x1="335.0" y1="473.1" x2="337.7" y2="480.6"/>
+      <line x1="296.1" y1="483.5" x2="297.5" y2="491.4"/>
+      <line x1="215.9" y1="483.5" x2="214.5" y2="491.4"/>
+      <line x1="177.0" y1="473.1" x2="174.3" y2="480.6"/>
+      <line x1="141.5" y1="454.3" x2="135.5" y2="464.7"/>
+      <line x1="107.5" y1="433.0" x2="102.4" y2="439.1"/>
+      <line x1="79.0" y1="404.5" x2="72.9" y2="409.6"/>
+      <line x1="57.7" y1="370.5" x2="47.3" y2="376.5"/>
+      <line x1="38.9" y1="335.0" x2="31.4" y2="337.7"/>
+      <line x1="28.5" y1="296.1" x2="20.6" y2="297.5"/>
+      <line x1="28.5" y1="215.9" x2="20.6" y2="214.5"/>
+      <line x1="38.9" y1="177.0" x2="31.4" y2="174.3"/>
+      <line x1="57.7" y1="141.5" x2="47.3" y2="135.5"/>
+      <line x1="79.0" y1="107.5" x2="72.9" y2="102.4"/>
+      <line x1="107.5" y1="79.0" x2="102.4" y2="72.9"/>
+      <line x1="141.5" y1="57.7" x2="135.5" y2="47.3"/>
+      <line x1="177.0" y1="38.9" x2="174.3" y2="31.4"/>
+      <line x1="215.9" y1="28.5" x2="214.5" y2="20.6"/>
+      <line x1="296.1" y1="28.5" x2="297.5" y2="20.6"/>
+      <line x1="335.0" y1="38.9" x2="337.7" y2="31.4"/>
+      <line x1="370.5" y1="57.7" x2="376.5" y2="47.3"/>
+      <line x1="404.5" y1="79.0" x2="409.6" y2="72.9"/>
+      <line x1="433.0" y1="107.5" x2="439.1" y2="102.4"/>
+      <line x1="454.3" y1="141.5" x2="464.7" y2="135.5"/>
+      <line x1="473.1" y1="177.0" x2="480.6" y2="174.3"/>
+      <line x1="483.5" y1="215.9" x2="491.4" y2="214.5"/>
+  </g>
+  <!-- wood face -->
+  <circle cx="256" cy="256" r="214" fill="url(#wood)"/>
+  <g clip-path="url(#inner)">
+    <g stroke="#1E1006" stroke-width="4" opacity="0.6">
+      <line x1="146" y1="30" x2="146" y2="490"/>
+      <line x1="256" y1="30" x2="256" y2="490"/>
+      <line x1="366" y1="30" x2="366" y2="490"/>
+    </g>
+    <g stroke="#FFD9A0" stroke-width="1.5" opacity="0.12">
+      <line x1="149" y1="30" x2="149" y2="490"/>
+      <line x1="259" y1="30" x2="259" y2="490"/>
+      <line x1="369" y1="30" x2="369" y2="490"/>
+    </g>
+    <g fill="none" stroke="#2A1608" stroke-width="2" opacity="0.55">
+      <path d="M92 40 C108 140 82 230 102 320 S 96 440 108 500"/>
+      <path d="M120 40 C130 120 112 210 126 300 S 120 430 128 500"/>
+      <path d="M196 30 C212 130 186 230 206 320 S 196 430 212 500"/>
+      <path d="M226 30 C236 120 218 220 232 310 S 224 430 236 500"/>
+      <path d="M306 30 C292 140 318 240 300 330 S 312 440 298 500"/>
+      <path d="M338 30 C328 130 348 230 334 320 S 344 440 332 500"/>
+      <path d="M414 40 C400 150 428 250 410 350 S 420 440 408 500"/>
+      <ellipse cx="322" cy="118" rx="11" ry="5"/>
+      <ellipse cx="116" cy="392" rx="9" ry="4"/>
+      <ellipse cx="408" cy="360" rx="8" ry="4"/>
+    </g>
+    <circle cx="246" cy="300" r="200" fill="url(#glow)"/>
+    <circle cx="256" cy="256" r="214" fill="url(#vignette)"/>
+  </g>
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#120802" stroke-opacity="0.7" stroke-width="5"/>
+
+  <!-- brass rivets -->
+  <g filter="url(#shadow)">
+    <g fill="url(#gold)" stroke="#4A2E08" stroke-width="2">
+      <circle cx="256" cy="20" r="8"/><circle cx="256" cy="492" r="8"/>
+      <circle cx="20" cy="256" r="8"/><circle cx="492" cy="256" r="8"/>
+      <circle cx="89" cy="89" r="8"/><circle cx="423" cy="89" r="8"/>
+      <circle cx="89" cy="423" r="8"/><circle cx="423" cy="423" r="8"/>
+    </g>
+  </g>
+  <g fill="#FFF6D8" opacity="0.8">
+    <circle cx="253" cy="17" r="2.5"/><circle cx="253" cy="489" r="2.5"/>
+    <circle cx="17" cy="253" r="2.5"/><circle cx="489" cy="253" r="2.5"/>
+    <circle cx="86" cy="86" r="2.5"/><circle cx="420" cy="86" r="2.5"/>
+    <circle cx="86" cy="420" r="2.5"/><circle cx="420" cy="420" r="2.5"/>
+  </g>
+  <!-- gloss on the ring -->
+  <path d="M34.2 175.3 A 236 236 0 0 1 477.8 175.3" fill="none" stroke="#FFE7A0" stroke-width="3" stroke-opacity="0.6" stroke-linecap="round"/>
+
+  <!-- the climb: an engraved brass rating line with data points, ending in an arrow -->
+  <g filter="url(#shadow)">
+    <polyline points="86,376 146,322 196,346 318,196 356,220 394,160" fill="none" stroke="#1A0E05" stroke-width="28" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="86,376 146,322 196,346 318,196 356,220 394,160" fill="none" stroke="url(#gold)" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="86,374 146,320 196,344 318,194 356,218 394,158" fill="none" stroke="#FFF7DC" stroke-width="3" stroke-opacity="0.55" stroke-linejoin="round" stroke-linecap="round"/>
+    <g fill="url(#gold)" stroke="#1A0E05" stroke-width="5">
+      <circle cx="146" cy="322" r="11"/>
+      <circle cx="356" cy="220" r="11"/>
+    </g>
+    <path d="M418 118 L413 170 L376 146 Z" fill="url(#gold)" stroke="#1A0E05" stroke-width="7" stroke-linejoin="round"/>
+  </g>
+
+  <!-- tankard -->
+  <g filter="url(#shadow)" transform="translate(236 316) scale(0.9) translate(-256 -300)">
+    <!-- handle -->
+    <path d="M322 268 C374 262 384 296 382 326 C380 360 362 382 322 384" fill="none" stroke="#1A0E05" stroke-width="36" stroke-linecap="round"/>
+    <path d="M322 268 C374 262 384 296 382 326 C380 360 362 382 322 384" fill="none" stroke="url(#handle)" stroke-width="22" stroke-linecap="round"/>
+    <path d="M330 272 C366 272 372 300 370 324" fill="none" stroke="#FFF4D0" stroke-width="4" stroke-opacity="0.6" stroke-linecap="round"/>
+    <!-- body -->
+    <path d="M180 236 L332 236 L325 408 Q323 420 310 420 L202 420 Q189 420 187 408 Z" fill="url(#stave)"/>
+    <g clip-path="url(#mugclip)">
+      <g stroke="#2E1A0A" stroke-width="3.5">
+        <line x1="210" y1="230" x2="214" y2="424"/>
+        <line x1="241" y1="230" x2="243" y2="424"/>
+        <line x1="272" y1="230" x2="271" y2="424"/>
+        <line x1="303" y1="230" x2="300" y2="424"/>
+      </g>
+      <g stroke="#FFD9A0" stroke-width="1.5" opacity="0.25">
+        <line x1="213" y1="230" x2="217" y2="424"/>
+        <line x1="244" y1="230" x2="246" y2="424"/>
+        <line x1="275" y1="230" x2="274" y2="424"/>
+      </g>
+      <!-- shadow under the foam -->
+      <rect x="170" y="236" width="180" height="22" fill="#1A0E05" opacity="0.35" filter="url(#soft)"/>
+      <!-- lamplight on the left staves -->
+      <rect x="196" y="236" width="18" height="190" fill="#FFE2B0" opacity="0.12"/>
+    </g>
+    <path d="M180 236 L332 236 L325 408 Q323 420 310 420 L202 420 Q189 420 187 408 Z" fill="none" stroke="#1A0E05" stroke-width="7" stroke-linejoin="round"/>
+    <!-- brass hoops -->
+    <path d="M181 268 L331 268 L330 290 L182 290 Z" fill="url(#band)" stroke="#1A0E05" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M185 376 L327 376 L326 398 L186 398 Z" fill="url(#band)" stroke="#1A0E05" stroke-width="5" stroke-linejoin="round"/>
+    <g fill="#4A2E08"><circle cx="196" cy="279" r="3"/><circle cx="316" cy="279" r="3"/><circle cx="200" cy="387" r="3"/><circle cx="312" cy="387" r="3"/></g>
+    <!-- foam -->
+    <path d="M168 238 C152 214 172 184 200 192 C206 164 240 156 258 176 C274 154 314 158 320 188 C350 180 370 210 350 234 C356 252 340 260 332 252 C332 276 312 284 306 264 C298 282 278 280 276 262 L180 260 C164 264 156 252 168 238 Z"
+          fill="url(#foam)" stroke="#1A0E05" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M188 214 C196 202 214 200 224 206 M262 188 C272 178 292 180 300 190" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+    <g fill="#E6CC98" opacity="0.8"><circle cx="236" cy="236" r="4"/><circle cx="296" cy="228" r="3"/><circle cx="208" cy="244" r="3"/><circle cx="330" cy="238" r="3.5"/></g>
+    <circle cx="214" cy="200" r="6" fill="#FFFFFF" opacity="0.95"/>
+  </g>
+</svg>

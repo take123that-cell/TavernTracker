@@ -1,0 +1,39 @@
+# Builds TavernTracker.exe on GitHub's Windows machines. Every push produces a downloadable
+# artifact (Actions tab); pushing a tag like v1.0.0 also publishes a Release with the .exe attached.
+name: Build TavernTracker.exe
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run tests
+        run: dotnet run --project tests/TavernTracker.Tests -c Release
+
+      - name: Publish single-file exe
+        run: dotnet publish src/TavernTracker.App/TavernTracker.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TavernTracker
+          path: dist/TavernTracker.exe
+
+      - name: Publish a release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/TavernTracker.exe

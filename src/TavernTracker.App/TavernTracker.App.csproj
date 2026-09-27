@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TavernTracker.App</RootNamespace>
+    <AssemblyName>TavernTracker</AssemblyName>
+    <Version>0.1.0</Version>
+    <!-- One .exe with everything inside when published (build.bat does this). -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon>TavernTracker.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Logo, wood texture, window icon and the Cinzel font (SIL OFL), compiled into the exe. -->
+    <Resource Include="Assets\*.png" />
+    <Resource Include="Fonts\*.ttf" />
+    <Resource Include="TavernTracker.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- JavaScript engine for the combat simulator (Microsoft ClearScript + Google V8). -->
+    <PackageReference Include="Microsoft.ClearScript.V8" Version="7.5.1" />
+    <PackageReference Include="Microsoft.ClearScript.V8.Native.win-x64" Version="7.5.1" />
+    <!-- Firestone's simulator bundled into one script (see /sim). -->
+    <EmbeddedResource Include="Combat\tt-sim.js" LogicalName="tt-sim.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TavernTracker.Core/TavernTracker.Core.csproj" />
+    <ProjectReference Include="../TavernTracker.Memory/TavernTracker.Memory.csproj" />
+  </ItemGroup>
+
+</Project>

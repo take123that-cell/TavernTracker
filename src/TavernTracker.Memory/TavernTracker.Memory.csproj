@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reads Battlegrounds information from Hearthstone's memory (your rating, the lobby's tribes,
+    players' names). Built on UnitySpy (MIT, see UnitySpy/LICENSE-UnitySpy.txt), via Firestone's
+    maintained fork: https://github.com/Zero-to-Heroes/unity-spy-.net4.5
+    Windows-only at runtime; everything fails safely (returns null) if the game isn't readable.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>TavernTracker.Memory</RootNamespace>
+    <AssemblyName>TavernTracker.Memory</AssemblyName>
+    <NoWarn>$(NoWarn);CA1416;CS0168;CS0169;CS0219;CS0414;CS0649;CS0162;CS8981;SYSLIB0003;CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TavernTracker.Core/TavernTracker.Core.csproj" />
+  </ItemGroup>
+
+</Project>
