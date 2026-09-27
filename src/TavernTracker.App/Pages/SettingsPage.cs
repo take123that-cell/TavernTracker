@@ -93,6 +93,16 @@ public sealed class SettingsPage : IPage
             }),
             Btn("Open data folder", () => Open(AppPaths.Root)));
 
+        var about = new StackPanel();
+        if (Asset("logo-wide.png") is { } wide)
+        {
+            var img = new Image { Source = wide, MaxWidth = 460, HorizontalAlignment = HorizontalAlignment.Left };
+            System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.HighQuality);
+            about.Children.Add(img);
+        }
+        var version = typeof(SettingsPage).Assembly.GetName().Version;
+        about.Children.Add(Note($"Version {version?.ToString(3)} · free and open source. Game data from HearthstoneJSON, Firestone and HSReplay; ratings from Blizzard's public leaderboard. Not affiliated with Blizzard Entertainment."));
+
         _scroll.Content = Stack(Orientation.Vertical, 18,
             Heading("Settings"),
             CardBox(Stack(Orientation.Vertical, 22, form, buttons), 22),
@@ -102,7 +112,8 @@ public sealed class SettingsPage : IPage
                 Note("Games: Tavern Tracker turns on Hearthstone's own game log (the same one HDT and other trackers use) and reads your games from it."),
                 Note("Memory (optional): your exact MMR, the lobby's tribes and players' names are read from the game's memory, the same way HDT and Firestone do it (built on the open-source UnitySpy)."),
                 Note("Ratings: from Blizzard's public leaderboard. Blizzard only publishes the top players, so if you or someone else is below the cutoff, no exact rating is available."),
-                Note("History: the app saves a copy of the leaderboard regularly while it's running. Rating graphs start from the first copy and fill in over time.")), 22));
+                Note("History: the app saves a copy of the leaderboard regularly while it's running. Rating graphs start from the first copy and fill in over time.")), 22),
+            CardBox(about, 22));
     }
 
     public void Refresh()

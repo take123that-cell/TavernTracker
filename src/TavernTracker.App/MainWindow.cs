@@ -55,25 +55,25 @@ public sealed class MainWindow : Window
         GamesList = new GamesPage(engine);
         SettingsView = new SettingsPage(engine, overlay);
 
-        var root = Columns(Px(220), Star());
+        var root = Columns(Px(240), Star());
 
         // ---- sidebar
         var side = new DockPanel { Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x12, 0x0B, 0x06)), LastChildFill = true };
-        // Logo: the tankard badge above the name, like a sign over the tavern door.
-        var brand = new StackPanel { Margin = new Thickness(18, 22, 18, 20) };
-        if (Asset("logo-mark.png") is { } mark)
-            brand.Children.Add(new Image { Source = mark, Width = 104, Height = 104, HorizontalAlignment = HorizontalAlignment.Center });
-        var name1 = T("TAVERN", 24, Gold, FontWeights.Bold);
-        var name2 = T("TRACKER", 15, Muted, FontWeights.Bold);
-        foreach (var n in new[] { name1, name2 })
+        // The wordmark (badge + name) heads the sidebar, like a sign over the tavern door.
+        var brand = new StackPanel { Margin = new Thickness(12, 20, 12, 18) };
+        if (Asset("logo-header.png") is { } header)
         {
-            n.FontFamily = Display;
-            n.HorizontalAlignment = HorizontalAlignment.Center;
-            n.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 5, ShadowDepth = 2, Opacity = 0.8, Color = Colors.Black };
+            var logo = new Image { Source = header, Width = 216, HorizontalAlignment = HorizontalAlignment.Center, ToolTip = "Tavern Tracker" };
+            RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
+            brand.Children.Add(logo);
         }
-        name1.Margin = new Thickness(0, 8, 0, 0);
-        brand.Children.Add(name1);
-        brand.Children.Add(name2);
+        else
+        {
+            var name = T("TAVERN TRACKER", 20, Gold, FontWeights.Bold);
+            name.FontFamily = Display;
+            name.HorizontalAlignment = HorizontalAlignment.Center;
+            brand.Children.Add(name);
+        }
         brand.Children.Add(new Border { Height = 2, Background = Brass, Margin = new Thickness(10, 14, 10, 0), Opacity = 0.8 });
         DockPanel.SetDock(brand, Dock.Top);
         side.Children.Add(brand);
