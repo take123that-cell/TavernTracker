@@ -1,5 +1,5 @@
-# Builds TavernTracker.exe on GitHub's Windows machines. Every push produces a downloadable
-# artifact (Actions tab); pushing a tag like v1.0.0 also publishes a Release with the .exe attached.
+# Builds TavernTracker.exe on GitHub's Windows machines and publishes it as a Release
+# (Releases page → Latest → TavernTracker.exe). Also kept as an artifact on the Actions tab.
 name: Build TavernTracker.exe
 
 on:
@@ -32,8 +32,15 @@ jobs:
           name: TavernTracker
           path: dist/TavernTracker.exe
 
-      - name: Publish a release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Every build on main becomes a release with the .exe attached (newest = "Latest").
+      - name: Publish release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          name: Tavern Tracker ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('1.0.{0}', github.run_number) }}
+          body: |
+            Download **TavernTracker.exe** below and run it. One file, nothing to install.
+            First time only: restart Hearthstone after starting Tavern Tracker so its game log is switched on.
+          make_latest: true
           files: dist/TavernTracker.exe
