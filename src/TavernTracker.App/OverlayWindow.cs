@@ -169,7 +169,7 @@ public sealed class OverlayWindow : Window
             hero = game.Heroes.FirstOrDefault(h => h.CardId == hovered)
                    ?? game.Heroes.FirstOrDefault(h => _engine.Cards.NormalizeHero(h.CardId) == key);
         }
-        else if (hovered == null && !game.IsDuos)
+        else if (hovered == null)
         {
             hero = HeroUnderCursor(game, _lastArea.Value);
         }
@@ -194,13 +194,30 @@ public sealed class OverlayWindow : Window
     {
         if (!GetCursorPos(out var c)) return null;
         double x = c.X - area.X, y = c.Y - area.Y, w = area.Width, h = area.Height;
-        // HDT: tiles start 15% down, each is 0.69/8 of the height and as wide as tall, at the left edge
-        // of the 4:3 play area.
+        // HDT's leaderboard geometry: portraits start 15% down, at the left edge of the 4:3 play area.
         double ratio = Math.Min(1.0, (4.0 / 3.0) / (w / h));
-        double tile = h * 0.69 / 8, top = h * 0.15, left = w * (1 - ratio) / 2;
-        if (x < left - tile * 0.1 || x > left + tile * 1.15 || y < top || y >= top + tile * 8) return null;
-        int place = (int)((y - top) / tile) + 1;
-        return game.Heroes.FirstOrDefault(hh => hh.Place == place);
+        double top = h * 0.15, left = w * (1 - ratio) / 2;
+        double tile = h * 0.69 / 8;
+        if (x < left - tile * 0.1 || x > left + tile * 1.25 || y < top) return null;
+        if (!game.IsDuos)
+        {
+            if (y >= top + tile * 8) return null;
+            int place = (int)((y - top) / tile) + 1;
+            return game.Heroes.FirstOrDefault(hh => hh.Place == place);
+        }
+        // Duos: four teams of two portraits with a gap between teams (HDT: 13.7% of the column is gaps).
+        const double spacingRatio = 0.137;
+        double duoTile = h * 0.69 * (1 - spacingRatio) / 8, gap = h * 0.69 * spacingRatio / 3;
+        for (int i = 0; i < 8; i++)
+        {
+            double t = top + duoTile * i + gap * (i / 2);
+            if (y < t || y >= t + duoTile) continue;
+            int teamPlace = i / 2 + 1;
+            var team = game.Heroes.Where(hh => hh.Place == teamPlace).OrderBy(hh => hh.EntityId).ToList();
+            if (team.Count == 0) return null;
+            return team[Math.Min(i % 2, team.Count - 1)];
+        }
+        return null;
     }
 
     private void HideAll()

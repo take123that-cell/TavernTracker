@@ -87,6 +87,7 @@ public sealed class PowerLogParser
         public int SourceEntity;
         public readonly List<int> Entities = new();
         public int Turn;
+        public int CombatIndex;
         public DateTime Offered;
     }
     private OpenChoice? _choice;          // the choice being offered to you, if any
@@ -499,6 +500,7 @@ public sealed class PowerLogParser
                 Player = mm.Groups["player"].Value.Trim(),
                 Type = mm.Groups["type"].Value,
                 Turn = Game?.Turn ?? 0,
+                CombatIndex = _combatIndex,
                 Offered = time,
             };
             // Only the latest offer is shown; a new one for the same player replaces the old.
@@ -543,8 +545,9 @@ public sealed class PowerLogParser
     {
         var c = _choice;
         if (c == null || Game == null || Game.IsOver || c.Entities.Count == 0) return null;
-        // Safety net: an offer is never still open two turns later (a missed "chosen" line).
-        if (Game.Turn > c.Turn + 1) return null;
+        // An offer never outlives its shopping phase: once a fight starts or the turn moves on, it has
+        // been answered (even if the "chosen" line was missed), so stale stats never linger on the board.
+        if (_inCombat || _combatIndex > c.CombatIndex || Game.Turn > c.Turn) return null;
         var options = c.Entities
             .Select(id => _entities.TryGetValue(id, out var e) ? e : null)
             .Where(e => e != null && e.CardId.Length > 0)
