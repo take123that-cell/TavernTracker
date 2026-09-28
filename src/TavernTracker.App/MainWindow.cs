@@ -38,7 +38,7 @@ public sealed class MainWindow : Window
     public MainWindow(TrackerEngine engine, OverlayWindow overlay)
     {
         _engine = engine;
-        Title = "Tavern Tracker";
+        Title = $"Tavern Tracker {typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}";
         Width = 1180;
         Height = 780;
         MinWidth = 900;

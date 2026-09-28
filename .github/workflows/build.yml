@@ -25,7 +25,7 @@ jobs:
         run: dotnet run --project tests/TavernTracker.Tests -c Release
 
       - name: Publish single-file exe
-        run: dotnet publish src/TavernTracker.App/TavernTracker.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist
+        run: dotnet publish src/TavernTracker.App/TavernTracker.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=1.0.${{ github.run_number }} -o dist
 
       - uses: actions/upload-artifact@v4
         with:
