@@ -103,3 +103,11 @@ tests/TavernTracker.Tests/  test runner: dotnet run --project tests/TavernTracke
 ## Fair play
 
 Tavern Tracker only uses public leaderboard data and the log file Hearthstone writes for your own games. It doesn't reveal hidden information or automate anything. As with any third-party tool, use it at your own risk under Blizzard's terms.
+
+## Disclaimer
+
+Tavern Tracker is a fan-made project. It is not affiliated with, endorsed by, or sponsored by Blizzard Entertainment. Hearthstone, Battlegrounds and related names, card data and artwork are trademarks or property of Blizzard Entertainment, Inc.
+
+## License
+
+Tavern Tracker is released under the [MIT License](LICENSE). Third-party components are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
